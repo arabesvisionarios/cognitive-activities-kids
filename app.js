@@ -1,3 +1,9 @@
+function whenNearViewport(id,initialize){
+ const element=document.getElementById(id);if(!element)return;
+ if(!('IntersectionObserver' in window)){initialize();return;}
+ const observer=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)){observer.disconnect();initialize();}},{rootMargin:'500px'});
+ observer.observe(element);
+}
 // Pause invisible carousels; resume automatically when they enter the viewport.
 function carouselVisibility(element){
  const state={visible:true};
@@ -29,8 +35,8 @@ let lastFocus;
 document.querySelectorAll('.js-checkout').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();lastFocus=a;const modal=document.getElementById('preview-notice');modal.classList.add('open');modal.querySelector('button').focus()}));
 document.getElementById('preview-notice').addEventListener('click',e=>{if(e.target.id==='preview-notice')closeNotice()});
 document.addEventListener('keydown',e=>{const modal=document.getElementById('preview-notice');if(!modal.classList.contains('open'))return;if(e.key==='Escape')closeNotice();if(e.key==='Tab'){const b=[...modal.querySelectorAll('button')];if(e.shiftKey&&document.activeElement===b[0]){e.preventDefault();b.at(-1).focus()}else if(!e.shiftKey&&document.activeElement===b.at(-1)){e.preventDefault();b[0].focus()}}});
-// Centered stack: one page in front, with neighboring pages behind it.
-(function(){
+// Centered stack: initialize as it approaches the viewport.
+whenNearViewport('pages-carousel',function(){
  const c=document.getElementById('pages-carousel'),track=c.querySelector('.track'),slides=[...track.children],dots=c.querySelector('.dots'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
  const visibility=carouselVisibility(c);
  let current=0,paused=false,startX=null;
@@ -42,7 +48,7 @@ document.addEventListener('keydown',e=>{const modal=document.getElementById('pre
  track.addEventListener('pointerup',e=>{if(startX!==null&&Math.abs(e.clientX-startX)>35)go(current+(e.clientX<startX?1:-1));startX=null});track.addEventListener('pointercancel',()=>startX=null);
  ['mouseenter','focusin','pointerdown'].forEach(e=>c.addEventListener(e,()=>paused=true));['mouseleave','focusout','pointerup','pointercancel'].forEach(e=>c.addEventListener(e,()=>paused=false));
  setInterval(()=>{if(visibility.visible&&!paused&&!document.hidden&&!reduced.matches)go(current+1)},3000);go(0);
-})();
+});
 
 // Fade-in reveals, with a fully visible reduced-motion and no-JavaScript fallback.
 if('IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
@@ -62,7 +68,7 @@ if('IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduc
  box.addEventListener('pointercancel',()=>dragging=false);box.addEventListener('lostpointercapture',()=>dragging=false);paint(50);
 })();
 // Supplied message carousel.
-(function(){
+whenNearViewport('proof-carousel',function(){
  const carousel=document.getElementById('proof-carousel');if(!carousel)return;
  const track=carousel.querySelector('.proof-track'),slides=[...track.children],dots=carousel.querySelector('.proof-dots'),reduced=matchMedia('(prefers-reduced-motion: reduce)');let paused=false,current=0;
  const visibility=carouselVisibility(carousel);
@@ -78,4 +84,4 @@ if('IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduc
  ['mouseenter','focusin','touchstart','pointerdown'].forEach(e=>carousel.addEventListener(e,()=>paused=true,{passive:true}));['mouseleave','focusout','touchend','pointerup'].forEach(e=>carousel.addEventListener(e,()=>paused=false,{passive:true}));
  setInterval(()=>{if(visibility.visible&&!paused&&!document.hidden&&!reduced.matches)go(current+1)},5000);
  if('ResizeObserver' in window)new ResizeObserver(setup).observe(track);else window.addEventListener('resize',setup);setup();
-})();
+});
