@@ -1,3 +1,12 @@
+// Pause invisible carousels; resume automatically when they enter the viewport.
+function carouselVisibility(element){
+ const state={visible:true};
+ if('IntersectionObserver' in window){
+  state.visible=false;
+  new IntersectionObserver(entries=>{state.visible=entries[0].isIntersecting},{rootMargin:'100px'}).observe(element);
+ }
+ return state;
+}
 // Keep the offer date aligned with the visitor's local calendar day.
 (function(){
  const label=document.getElementById('offer-today');if(!label)return;
@@ -23,6 +32,7 @@ document.addEventListener('keydown',e=>{const modal=document.getElementById('pre
 // Centered stack: one page in front, with neighboring pages behind it.
 (function(){
  const c=document.getElementById('pages-carousel'),track=c.querySelector('.track'),slides=[...track.children],dots=c.querySelector('.dots'),reduced=matchMedia('(prefers-reduced-motion: reduce)');
+ const visibility=carouselVisibility(c);
  let current=0,paused=false,startX=null;
  function go(index){current=(index+slides.length)%slides.length;slides.forEach((slide,i)=>{let distance=(i-current+slides.length)%slides.length;if(distance>slides.length/2)distance-=slides.length;slide.dataset.position=distance;slide.style.setProperty('--offset',distance);slide.style.zIndex=10-Math.abs(distance);slide.style.opacity=Math.abs(distance)>2?'0':String(1-Math.abs(distance)*.22);slide.setAttribute('aria-hidden',i===current?'false':'true')});[...dots.children].forEach((dot,i)=>{dot.classList.toggle('on',i===current);dot.setAttribute('aria-current',i===current?'true':'false')})}
  slides.forEach((slide,i)=>{const dot=document.createElement('button');dot.type='button';dot.setAttribute('aria-label','Show activity page '+(i+1));dot.onclick=()=>go(i);dots.append(dot)});
@@ -31,7 +41,7 @@ document.addEventListener('keydown',e=>{const modal=document.getElementById('pre
  track.addEventListener('pointerdown',e=>{startX=e.clientX;track.setPointerCapture(e.pointerId)});
  track.addEventListener('pointerup',e=>{if(startX!==null&&Math.abs(e.clientX-startX)>35)go(current+(e.clientX<startX?1:-1));startX=null});track.addEventListener('pointercancel',()=>startX=null);
  ['mouseenter','focusin','pointerdown'].forEach(e=>c.addEventListener(e,()=>paused=true));['mouseleave','focusout','pointerup','pointercancel'].forEach(e=>c.addEventListener(e,()=>paused=false));
- setInterval(()=>{if(!paused&&!document.hidden&&!reduced.matches)go(current+1)},3000);go(0);
+ setInterval(()=>{if(visibility.visible&&!paused&&!document.hidden&&!reduced.matches)go(current+1)},3000);go(0);
 })();
 
 // Fade-in reveals, with a fully visible reduced-motion and no-JavaScript fallback.
@@ -55,15 +65,17 @@ if('IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduc
 (function(){
  const carousel=document.getElementById('proof-carousel');if(!carousel)return;
  const track=carousel.querySelector('.proof-track'),slides=[...track.children],dots=carousel.querySelector('.proof-dots'),reduced=matchMedia('(prefers-reduced-motion: reduce)');let paused=false,current=0;
- const step=()=>slides.length>1?slides[1].offsetLeft-slides[0].offsetLeft:0;
- const maximum=()=>Math.max(0,Math.ceil((track.scrollWidth-track.clientWidth)/step()));
+ const visibility=carouselVisibility(carousel);
+ let cachedStep=1,cachedMaximum=0;
+ const step=()=>cachedStep;
+ const maximum=()=>cachedMaximum;
  function paint(){[...dots.children].forEach((dot,i)=>{dot.classList.toggle('on',i===current);dot.setAttribute('aria-current',i===current?'true':'false')})}
  function go(i){const pages=maximum()+1;current=(i+pages)%pages;track.scrollTo({left:current===maximum()?track.scrollWidth-track.clientWidth:current*step(),behavior:reduced.matches?'instant':'smooth'});paint()}
- function setup(){dots.replaceChildren();for(let i=0;i<=maximum();i++){const dot=document.createElement('button');dot.setAttribute('aria-label','Show message group '+(i+1));dot.onclick=()=>go(i);dots.append(dot)}current=Math.min(current,maximum());paint()}
+ function setup(){cachedStep=slides.length>1?slides[1].offsetLeft-slides[0].offsetLeft:1;cachedMaximum=Math.max(0,Math.ceil((track.scrollWidth-track.clientWidth)/cachedStep));dots.replaceChildren();for(let i=0;i<=maximum();i++){const dot=document.createElement('button');dot.setAttribute('aria-label','Show message group '+(i+1));dot.onclick=()=>go(i);dots.append(dot)}current=Math.min(current,maximum());paint()}
  carousel.querySelector('.next').onclick=()=>go(current+1);carousel.querySelector('.prev').onclick=()=>go(current-1);
  track.addEventListener('scroll',()=>{current=track.scrollWidth-track.clientWidth-track.scrollLeft<2?maximum():Math.min(maximum(),Math.round(track.scrollLeft/step()));paint()},{passive:true});
  track.addEventListener('keydown',event=>{if(event.key==='ArrowRight'){event.preventDefault();go(current+1)}if(event.key==='ArrowLeft'){event.preventDefault();go(current-1)}});
  ['mouseenter','focusin','touchstart','pointerdown'].forEach(e=>carousel.addEventListener(e,()=>paused=true,{passive:true}));['mouseleave','focusout','touchend','pointerup'].forEach(e=>carousel.addEventListener(e,()=>paused=false,{passive:true}));
- setInterval(()=>{if(!paused&&!document.hidden&&!reduced.matches)go(current+1)},5000);
+ setInterval(()=>{if(visibility.visible&&!paused&&!document.hidden&&!reduced.matches)go(current+1)},5000);
  if('ResizeObserver' in window)new ResizeObserver(setup).observe(track);else window.addEventListener('resize',setup);setup();
 })();
