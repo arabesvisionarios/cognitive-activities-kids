@@ -22,12 +22,13 @@
   }
   function arm() {
     if (armed || shown) return;
-    armed = true;
     try {
       history.replaceState(Object.assign({}, originalState, {bsRecoveryBase: token}), '', location.href);
       history.pushState(Object.assign({}, originalState, {bsRecoveryGuard: token}), '', location.href);
+      armed = true;
     } catch (_) {}
   }
+  arm();
   ['pointerdown', 'touchstart', 'keydown', 'scroll'].forEach(type =>
     window.addEventListener(type, arm, {once: true, passive: true}));
   window.addEventListener('popstate', event => {
@@ -37,7 +38,7 @@
     if (!shown && !event.relatedTarget && event.clientY <= 0 &&
         matchMedia('(hover: hover) and (pointer: fine)').matches) {
       cancelExit();
-      exitTimer = setTimeout(showOffer, 2000);
+      exitTimer = setTimeout(showOffer, 1000);
     }
   });
   document.addEventListener('mouseover', cancelExit);
