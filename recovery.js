@@ -5,10 +5,15 @@
   try { shown = sessionStorage.getItem(key) === '1'; } catch (_) {}
   if (shown) return;
   const token = String(Date.now());
-  const started = Date.now();
+  let exitTimer = null;
+  function cancelExit() {
+    clearTimeout(exitTimer);
+    exitTimer = null;
+  }
   const originalState = history.state && typeof history.state === 'object' ? history.state : {};
   function showOffer() {
     if (shown) return;
+    cancelExit();
     shown = true;
     try { sessionStorage.setItem(key, '1'); } catch (_) {}
     const destination = new URL('special-offer.html', location.href);
@@ -29,9 +34,14 @@
     if (armed && event.state && event.state.bsRecoveryBase === token) showOffer();
   });
   document.addEventListener('mouseout', event => {
-    if (armed && !event.relatedTarget && event.clientY <= 0 &&
-        Date.now() - started > 8000 && matchMedia('(hover: hover) and (pointer: fine)').matches) {
-      showOffer();
+    if (!shown && !event.relatedTarget && event.clientY <= 0 &&
+        matchMedia('(hover: hover) and (pointer: fine)').matches) {
+      cancelExit();
+      exitTimer = setTimeout(showOffer, 2000);
     }
+  });
+  document.addEventListener('mouseover', cancelExit);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) cancelExit();
   });
 })();
